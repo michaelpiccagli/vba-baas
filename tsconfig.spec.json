@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2023",
+
+    "rootDir": "./",
+
+    "types": ["node", "jest"],
+
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "isolatedModules": true,
+
+    "skipLibCheck": true,
+    "strict": true
+  },
+
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ]
+}
