@@ -1,6 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 
 import { GatewayService } from './gateway.service';
+import { LoginDto } from './dto/login.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller('gateway')
 export class GatewayController {
@@ -9,5 +11,15 @@ export class GatewayController {
   @Get('fees')
   getFees() {
     return this.gatewayService.getFees();
+  }
+
+  @Post('login')
+  login(@Body() data: LoginDto) {
+    return this.gatewayService.login(data);
+  }
+
+  @Post('users')
+  createUser(@Body() data: CreateUserDto) {
+    return this.gatewayService.createUser(data);
   }
 }
