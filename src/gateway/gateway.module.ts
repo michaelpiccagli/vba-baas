@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 
 import { GatewayService } from './gateway.service';
+import { GatewayController } from './gateway.controller';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { GatewayService } from './gateway.service';
       maxRedirects: 5,
     }),
   ],
+  controllers: [GatewayController],
   providers: [GatewayService],
   exports: [GatewayService],
 })
