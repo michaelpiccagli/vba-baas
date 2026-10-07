@@ -61,16 +61,16 @@ export class GatewayService {
 
     await this.gatewayAccountRepository.save(account);
 
-return {
-  message: 'Login realizado com sucesso',
-  user: {
-    id: loginResponse.user.id,
-    personType: loginResponse.user.personType,
-    name: loginResponse.user.name,
-    tradingName: loginResponse.user.tradingName,
-    email: loginResponse.user.email,
-  },
-};
+    return {
+      message: 'Login realizado com sucesso',
+      user: {
+        id: loginResponse.user.id,
+        personType: loginResponse.user.personType,
+        name: loginResponse.user.name,
+        tradingName: loginResponse.user.tradingName,
+        email: loginResponse.user.email,
+      },
+    };
   }
 
   async createUser(data: CreateUserDto) {
@@ -81,4 +81,28 @@ return {
 
     return response.data;
   }
+
+ async getWallet() {
+  const accounts = await this.gatewayAccountRepository.find({
+    order: { updatedAt: 'DESC' },
+    take: 1,
+  });
+
+  const account = accounts[0];
+
+  if (!account) {
+    throw new Error('Nenhuma conta do gateway encontrada.');
+  }
+
+  const response = await this.httpService.axiosRef.get(
+    `${this.baseUrl}/wallet`,
+    {
+      headers: {
+        Authorization: `Bearer ${account.accessToken}`,
+      },
+    },
+  );
+
+  return response.data;
+}
 }

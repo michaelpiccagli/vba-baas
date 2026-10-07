@@ -22,4 +22,9 @@ export class GatewayController {
   createUser(@Body() data: CreateUserDto) {
     return this.gatewayService.createUser(data);
   }
+
+  @Get('wallet')
+  getWallet() {
+    return this.gatewayService.getWallet();
+  }
 }
