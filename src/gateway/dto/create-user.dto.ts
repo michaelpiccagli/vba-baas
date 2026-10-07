@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -15,23 +16,26 @@ export class CreateUserDto {
   @IsNotEmpty()
   name: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   tradingName?: string;
 
   @IsEmail()
   email: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(/^\d{11}$/, {
+    message: 'phone deve conter 11 dígitos',
+  })
   phone: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(/^(\d{11}|\d{14})$/, {
+    message: 'document deve conter 11 dígitos para CPF ou 14 para CNPJ',
+  })
   document: string;
 
-  @IsString()
-  @Length(8, 8)
+  @Matches(/^\d{8}$/, {
+    message: 'zipCode deve conter 8 dígitos',
+  })
   zipCode: string;
 
   @IsString()
@@ -42,8 +46,8 @@ export class CreateUserDto {
   @IsNotEmpty()
   number: string;
 
-  @IsString()
   @IsOptional()
+  @IsString()
   complement?: string;
 
   @IsString()

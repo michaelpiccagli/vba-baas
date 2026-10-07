@@ -1,16 +1,25 @@
-import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Min,
+} from 'class-validator';
 
 export class CreatePixDto {
   @IsInt()
   @Min(1)
   amount: number;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  description?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @Matches(/^(\d{11}|\d{14})$/, {
+    message: 'payerDocument deve conter 11 dígitos para CPF ou 14 para CNPJ',
+  })
   payerDocument: string;
 
   @IsString()
