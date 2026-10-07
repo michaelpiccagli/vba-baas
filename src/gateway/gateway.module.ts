@@ -7,13 +7,15 @@ import { GatewayController } from './gateway.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GatewayAccount } from './entities/gateway-account.entity';
 
+import { Transaction } from '../transactions/entities/transaction.entity';
+
 @Module({
   imports: [
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 5,
     }),
-    TypeOrmModule.forFeature([GatewayAccount]),
+    TypeOrmModule.forFeature([GatewayAccount, Transaction]),
   ],
   controllers: [GatewayController],
   providers: [GatewayService],

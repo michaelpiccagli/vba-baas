@@ -11,6 +11,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GatewayAccount } from './entities/gateway-account.entity';
 
+import { CreatePixDto } from './dto/create-pix.dto';
+import { Transaction } from '../transactions/entities/transaction.entity';
+
 @Injectable()
 export class GatewayService {
   constructor(
@@ -18,6 +21,8 @@ export class GatewayService {
     private readonly configService: ConfigService,
     @InjectRepository(GatewayAccount)
     private readonly gatewayAccountRepository: Repository<GatewayAccount>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
   ) {}
 
   private get baseUrl(): string {
@@ -106,36 +111,87 @@ export class GatewayService {
     return response.data;
   }
 
-  async getTransactions(
-  status?: string,
-  type?: string,
-  limit?: string,
-) {
-  const accounts = await this.gatewayAccountRepository.find({
-    order: { updatedAt: 'DESC' },
-    take: 1,
-  });
+  async getTransactions(status?: string, type?: string, limit?: string) {
+    const accounts = await this.gatewayAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
 
-  const account = accounts[0];
+    const account = accounts[0];
 
-  if (!account) {
-    throw new Error('Nenhuma conta do gateway encontrada.');
+    if (!account) {
+      throw new Error('Nenhuma conta do gateway encontrada.');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/wallet/transactions`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+        params: {
+          status,
+          type,
+          limit,
+        },
+      },
+    );
+
+    return response.data;
   }
+  async createPix(data: CreatePixDto) {
+    const accounts = await this.gatewayAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
 
-  const response = await this.httpService.axiosRef.get(
-    `${this.baseUrl}/wallet/transactions`,
-    {
-      headers: {
-        Authorization: `Bearer ${account.accessToken}`,
-      },
-      params: {
-        status,
-        type,
-        limit,
-      },
-    },
-  );
+    const account = accounts[0];
 
-  return response.data;
-}
+    if (!account) {
+      throw new Error('Nenhuma conta do gateway encontrada.');
+    }
+
+    const response = await this.httpService.axiosRef.post(
+      `${this.baseUrl}/payments/pix`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const pix = response.data;
+
+    const transaction = this.transactionRepository.create({
+      gatewayTransactionId: pix.id,
+      type: pix.type,
+      status: pix.status,
+      denialReason: pix.denialReason,
+      amount: pix.amount,
+      description: pix.description,
+      externalReference: pix.externalReference,
+      txid: pix.txid,
+      emv: pix.emv,
+    });
+
+    await this.transactionRepository.save(transaction);
+
+    return {
+      id: pix.id,
+      type: pix.type,
+      status: pix.status,
+      denialReason: pix.denialReason,
+      amount: pix.amount,
+      amountFormatted: pix.amountFormatted,
+      description: pix.description,
+      message: pix.message,
+      externalReference: pix.externalReference,
+      txid: pix.txid,
+      emv: pix.emv,
+      qrCodeBase64: pix.qrCodeBase64,
+      copyPaste: pix.copyPaste,
+      createdAt: pix.createdAt,
+    };
+  }
 }

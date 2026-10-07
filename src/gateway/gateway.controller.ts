@@ -3,6 +3,7 @@ import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreatePixDto } from './dto/create-pix.dto';
 
 @Controller('gateway')
 export class GatewayController {
@@ -35,5 +36,9 @@ export class GatewayController {
     @Query('limit') limit?: string,
   ) {
     return this.gatewayService.getTransactions(status, type, limit);
+  }
+  @Post('payments/pix')
+  createPix(@Body() data: CreatePixDto) {
+    return this.gatewayService.createPix(data);
   }
 }
