@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 
@@ -6,23 +6,29 @@ import { FeesResponseDto } from './dto/fees-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreatePixDto } from './dto/create-pix.dto';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GatewayAccount } from './entities/gateway-account.entity';
 
-import { CreatePixDto } from './dto/create-pix.dto';
+import { GatewayAccount } from './entities/gateway-account.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { Merchant } from '../merchants/entities/merchant.entity';
 
 @Injectable()
 export class GatewayService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+
     @InjectRepository(GatewayAccount)
     private readonly gatewayAccountRepository: Repository<GatewayAccount>,
+
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+
+    @InjectRepository(Merchant)
+    private readonly merchantRepository: Repository<Merchant>,
   ) {}
 
   private get baseUrl(): string {
@@ -37,7 +43,15 @@ export class GatewayService {
     return response.data;
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginDto, merchantId: string) {
+    const merchant = await this.merchantRepository.findOne({
+      where: { id: merchantId },
+    });
+
+    if (!merchant) {
+      throw new UnauthorizedException('Lojista não encontrado');
+    }
+
     const response = await this.httpService.axiosRef.post<LoginResponseDto>(
       `${this.baseUrl}/auth/login`,
       data,
@@ -63,6 +77,7 @@ export class GatewayService {
     account.chaveLoja = loginResponse.chaveLoja;
     account.accessToken = loginResponse.access_token;
     account.tokenType = loginResponse.token_type;
+    account.merchant = merchant;
 
     await this.gatewayAccountRepository.save(account);
 
@@ -87,16 +102,22 @@ export class GatewayService {
     return response.data;
   }
 
-  async getWallet() {
-    const accounts = await this.gatewayAccountRepository.find({
-      order: { updatedAt: 'DESC' },
-      take: 1,
+  async getWallet(merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
     });
 
-    const account = accounts[0];
-
     if (!account) {
-      throw new Error('Nenhuma conta do gateway encontrada.');
+      throw new UnauthorizedException(
+        'Conta do gateway não vinculada ao lojista',
+      );
     }
 
     const response = await this.httpService.axiosRef.get(
@@ -111,16 +132,27 @@ export class GatewayService {
     return response.data;
   }
 
-  async getTransactions(status?: string, type?: string, limit?: string) {
-    const accounts = await this.gatewayAccountRepository.find({
-      order: { updatedAt: 'DESC' },
-      take: 1,
+  async getTransactions(
+    merchantId: string,
+    status?: string,
+    type?: string,
+    limit?: string,
+  ) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
     });
 
-    const account = accounts[0];
-
     if (!account) {
-      throw new Error('Nenhuma conta do gateway encontrada.');
+      throw new UnauthorizedException(
+        'Conta do gateway não vinculada ao lojista',
+      );
     }
 
     const response = await this.httpService.axiosRef.get(
@@ -139,16 +171,23 @@ export class GatewayService {
 
     return response.data;
   }
-  async createPix(data: CreatePixDto) {
-    const accounts = await this.gatewayAccountRepository.find({
-      order: { updatedAt: 'DESC' },
-      take: 1,
+
+  async createPix(data: CreatePixDto, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
     });
 
-    const account = accounts[0];
-
     if (!account) {
-      throw new Error('Nenhuma conta do gateway encontrada.');
+      throw new UnauthorizedException(
+        'Conta do gateway não vinculada ao lojista',
+      );
     }
 
     const response = await this.httpService.axiosRef.post(

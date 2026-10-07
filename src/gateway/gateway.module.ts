@@ -9,13 +9,17 @@ import { GatewayAccount } from './entities/gateway-account.entity';
 
 import { Transaction } from '../transactions/entities/transaction.entity';
 
+import { AuthModule } from '../auth/auth.module';
+import { Merchant } from '../merchants/entities/merchant.entity';
+
 @Module({
   imports: [
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 5,
     }),
-    TypeOrmModule.forFeature([GatewayAccount, Transaction]),
+    TypeOrmModule.forFeature([GatewayAccount, Transaction, Merchant]),
+    AuthModule,
   ],
   controllers: [GatewayController],
   providers: [GatewayService],

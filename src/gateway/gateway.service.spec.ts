@@ -9,6 +9,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { GatewayAccount } from './entities/gateway-account.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 
+import { Merchant } from '../merchants/entities/merchant.entity';
+
 describe('GatewayService', () => {
   let service: GatewayService;
 
@@ -43,6 +45,15 @@ describe('GatewayService', () => {
         {
           provide: getRepositoryToken(Transaction),
           useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Merchant),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
           },
