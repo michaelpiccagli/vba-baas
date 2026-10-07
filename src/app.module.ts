@@ -7,6 +7,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { GatewayModule } from './gateway/gateway.module';
 
+import { MerchantsModule } from './merchants/merchants.module';
+
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -30,6 +33,8 @@ import { GatewayModule } from './gateway/gateway.module';
     }),
 
     GatewayModule,
+    MerchantsModule,
+    AuthModule,
   ],
 
   controllers: [AppController],

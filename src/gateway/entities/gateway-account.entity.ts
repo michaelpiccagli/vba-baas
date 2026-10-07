@@ -2,9 +2,15 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
+import type { Relation } from 'typeorm';
+
+import { Merchant } from '../../merchants/entities/merchant.entity';
 
 @Entity('gateway_accounts')
 export class GatewayAccount {
@@ -40,6 +46,12 @@ export class GatewayAccount {
 
   @Column()
   tokenType: string;
+
+  @OneToOne(() => Merchant, (merchant) => merchant.gatewayAccount, {
+    nullable: true,
+  })
+  @JoinColumn()
+  merchant: Relation<Merchant> | null;
 
   @CreateDateColumn()
   createdAt: Date;
