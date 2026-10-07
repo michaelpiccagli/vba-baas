@@ -4,12 +4,16 @@ import { HttpModule } from '@nestjs/axios';
 import { GatewayService } from './gateway.service';
 import { GatewayController } from './gateway.controller';
 
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { GatewayAccount } from './entities/gateway-account.entity';
+
 @Module({
   imports: [
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 5,
     }),
+    TypeOrmModule.forFeature([GatewayAccount]),
   ],
   controllers: [GatewayController],
   providers: [GatewayService],
