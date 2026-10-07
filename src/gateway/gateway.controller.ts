@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 
 import { GatewayService } from './gateway.service';
 import { LoginDto } from './dto/login.dto';
@@ -26,5 +26,14 @@ export class GatewayController {
   @Get('wallet')
   getWallet() {
     return this.gatewayService.getWallet();
+  }
+
+  @Get('transactions')
+  getTransactions(
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.gatewayService.getTransactions(status, type, limit);
   }
 }

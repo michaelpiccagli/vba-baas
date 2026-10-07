@@ -82,7 +82,35 @@ export class GatewayService {
     return response.data;
   }
 
- async getWallet() {
+  async getWallet() {
+    const accounts = await this.gatewayAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1,
+    });
+
+    const account = accounts[0];
+
+    if (!account) {
+      throw new Error('Nenhuma conta do gateway encontrada.');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/wallet`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    return response.data;
+  }
+
+  async getTransactions(
+  status?: string,
+  type?: string,
+  limit?: string,
+) {
   const accounts = await this.gatewayAccountRepository.find({
     order: { updatedAt: 'DESC' },
     take: 1,
@@ -95,10 +123,15 @@ export class GatewayService {
   }
 
   const response = await this.httpService.axiosRef.get(
-    `${this.baseUrl}/wallet`,
+    `${this.baseUrl}/wallet/transactions`,
     {
       headers: {
         Authorization: `Bearer ${account.accessToken}`,
+      },
+      params: {
+        status,
+        type,
+        limit,
       },
     },
   );
