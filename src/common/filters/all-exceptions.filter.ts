@@ -15,6 +15,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = context.getResponse<Response>();
     const request = context.getRequest<Request>();
 
+    const correlationId = request.headers['x-correlation-id']?.toString();
+
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Erro interno do servidor';
 
@@ -37,8 +39,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : String(responseMessage);
       }
     } else if (axios.isAxiosError(exception)) {
-      statusCode =
-        exception.response?.status ?? HttpStatus.BAD_GATEWAY;
+      statusCode = exception.response?.status ?? HttpStatus.BAD_GATEWAY;
 
       const gatewayData = exception.response?.data;
 
@@ -58,6 +59,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       path: request.url,
       timestamp: new Date().toISOString(),
+      correlationId,
     });
   }
 }
