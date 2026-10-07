@@ -11,6 +11,8 @@ import { MerchantsModule } from './merchants/merchants.module';
 
 import { AuthModule } from './auth/auth.module';
 
+import { CheckoutsModule } from './checkouts/checkouts.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,6 +37,7 @@ import { AuthModule } from './auth/auth.module';
     GatewayModule,
     MerchantsModule,
     AuthModule,
+    CheckoutsModule,
   ],
 
   controllers: [AppController],
