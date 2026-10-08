@@ -5,25 +5,25 @@ import {
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-
-import { FeesResponseDto } from './dto/fees-response.dto';
-import { LoginDto } from './dto/login.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { CreatePixDto } from './dto/create-pix.dto';
-import { CreateWebhookDto } from './dto/create-webhook.dto';
-
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { GatewayAccount } from './entities/gateway-account.entity';
-import { Transaction } from '../transactions/entities/transaction.entity';
-import { Merchant } from '../merchants/entities/merchant.entity';
 import { Checkout } from '../checkouts/entities/checkout.entity';
-import { CreateCardDto } from './dto/create-card.dto';
+import { Merchant } from '../merchants/entities/merchant.entity';
+import { Transaction } from '../transactions/entities/transaction.entity';
 import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
+
+import { CreateCardDto } from './dto/create-card.dto';
+import { CreatePixDto } from './dto/create-pix.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { FeesResponseDto } from './dto/fees-response.dto';
+import { LoginDto } from './dto/login.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+
+import { GatewayAccount } from './entities/gateway-account.entity';
 
 @Injectable()
 export class GatewayService {
@@ -44,7 +44,9 @@ export class GatewayService {
     private readonly webhookSubscriptionRepository: Repository<WebhookSubscription>,
   ) {}
 
-  private detectCardBrand(cardNumber: string): 'VISA' | 'MASTERCARD' | 'ELO' {
+  private detectCardBrand(
+    cardNumber: string,
+  ): 'VISA' | 'MASTERCARD' | 'ELO' {
     const number = cardNumber.replace(/\D/g, '');
 
     if (
@@ -71,14 +73,15 @@ export class GatewayService {
   }
 
   async getFees(brand?: string): Promise<FeesResponseDto> {
-    const response = await this.httpService.axiosRef.get<FeesResponseDto>(
-      `${this.baseUrl}/fees`,
-      {
-        params: {
-          brand,
+    const response =
+      await this.httpService.axiosRef.get<FeesResponseDto>(
+        `${this.baseUrl}/fees`,
+        {
+          params: {
+            brand,
+          },
         },
-      },
-    );
+      );
 
     return response.data;
   }
@@ -92,15 +95,18 @@ export class GatewayService {
       throw new UnauthorizedException('Lojista não encontrado');
     }
 
-    const response = await this.httpService.axiosRef.post<LoginResponseDto>(
-      `${this.baseUrl}/auth/login`,
-      data,
-    );
+    const response =
+      await this.httpService.axiosRef.post<LoginResponseDto>(
+        `${this.baseUrl}/auth/login`,
+        data,
+      );
 
     const loginResponse = response.data;
 
     let account = await this.gatewayAccountRepository.findOne({
-      where: { gatewayUserId: loginResponse.user.id },
+      where: {
+        gatewayUserId: loginResponse.user.id,
+      },
     });
 
     if (!account) {
@@ -143,27 +149,12 @@ export class GatewayService {
   }
 
   async getCurrentUser(merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/users/me`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -179,13 +170,15 @@ export class GatewayService {
       document: user.document
         ? `${user.document.slice(0, 3)}.***.***-${user.document.slice(-2)}`
         : null,
-      zipCode: user.zipCode,
-      address: user.address,
-      number: user.number,
-      complement: user.complement ?? null,
-      neighborhood: user.neighborhood,
-      city: user.city,
-      state: user.state,
+      address: {
+        zipCode: user.address?.zipCode,
+        address: user.address?.address,
+        number: user.address?.number,
+        complement: user.address?.complement ?? null,
+        neighborhood: user.address?.neighborhood,
+        city: user.address?.city,
+        state: user.address?.state,
+      },
     };
   }
 
@@ -202,29 +195,12 @@ export class GatewayService {
   }
 
   async getWallet(merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException(
-        'Conta do gateway não vinculada ao lojista',
-      );
-    }
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/wallet`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -237,29 +213,12 @@ export class GatewayService {
     type?: string,
     limit?: string,
   ) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException(
-        'Conta do gateway não vinculada ao lojista',
-      );
-    }
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/wallet/transactions`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
         params: {
           status,
           type,
@@ -271,31 +230,18 @@ export class GatewayService {
     return response.data;
   }
 
-  async createPix(data: CreatePixDto, merchantId: string, checkout?: Checkout) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException(
-        'Conta do gateway não vinculada ao lojista',
-      );
-    }
+  async createPix(
+    data: CreatePixDto,
+    merchantId: string,
+    checkout?: Checkout,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.post(
       `${this.baseUrl}/payments/pix`,
       data,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -339,27 +285,18 @@ export class GatewayService {
     merchantId: string,
     checkout?: Checkout,
   ) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+    const account = await this.getGatewayAccount(merchantId);
 
     const brand = this.detectCardBrand(data.cardNumber);
 
     const feesResponse = await this.getFees(brand);
 
     const matchingFee = feesResponse.fees.find(
-      (fee: { brand: string; installments: number; feePercent: number }) =>
+      (fee: {
+        brand: string;
+        installments: number;
+        feePercent: number;
+      }) =>
         fee.brand === brand &&
         fee.installments === data.installments &&
         fee.feePercent === data.feePercent,
@@ -375,9 +312,7 @@ export class GatewayService {
       `${this.baseUrl}/payments/card`,
       data,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -420,28 +355,16 @@ export class GatewayService {
     };
   }
 
-  async getPaymentById(paymentId: string, merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+  async getPaymentById(
+    paymentId: string,
+    merchantId: string,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/payments/${paymentId}`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -456,7 +379,8 @@ export class GatewayService {
       amountFormatted: payment.amountFormatted,
       description: payment.description,
       message: payment.message,
-      externalReference: payment.metadata?.externalReference ?? null,
+      externalReference:
+        payment.metadata?.externalReference ?? null,
       createdAt: payment.createdAt,
       card:
         payment.type === 'CREDIT_CARD'
@@ -471,127 +395,85 @@ export class GatewayService {
     };
   }
 
-  async createWebhook(data: CreateWebhookDto, merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
+  async createWebhook(
+    data: CreateWebhookDto,
+    merchantId: string,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
-    if (!account || !account.merchant) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
+    if (!account.merchant) {
+      throw new UnauthorizedException(
+        'Conta do gateway não vinculada ao lojista',
+      );
     }
 
     const response = await this.httpService.axiosRef.post(
       `${this.baseUrl}/webhooks`,
       data,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
     const webhook = response.data;
 
-    const subscription = this.webhookSubscriptionRepository.create({
-      gatewayWebhookId: webhook.id,
-      event: webhook.event,
-      url: webhook.url,
-      secret: data.secret ?? null,
-      active: webhook.active,
-      merchant: account.merchant,
-    });
+    const subscription =
+      this.webhookSubscriptionRepository.create({
+        gatewayWebhookId: webhook.id,
+        event: webhook.event,
+        url: webhook.url,
+        secret: data.secret ?? null,
+        active: webhook.active,
+        merchant: account.merchant,
+      });
 
-    await this.webhookSubscriptionRepository.save(subscription);
+    await this.webhookSubscriptionRepository.save(
+      subscription,
+    );
 
     return webhook;
   }
 
   async getWebhooks(merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/webhooks`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
     return response.data;
   }
 
-  async deleteWebhook(webhookId: string, merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+  async deleteWebhook(
+    webhookId: string,
+    merchantId: string,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.delete(
       `${this.baseUrl}/webhooks/${webhookId}`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
     return response.data;
   }
 
-  async createWithdrawal(data: CreateWithdrawalDto, merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+  async createWithdrawal(
+    data: CreateWithdrawalDto,
+    merchantId: string,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.post(
       `${this.baseUrl}/withdrawals`,
       data,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -605,7 +487,9 @@ export class GatewayService {
       amount: withdrawal.amount,
       description: withdrawal.description ?? null,
       externalReference:
-        withdrawal.externalReference ?? data.externalReference ?? null,
+        withdrawal.externalReference ??
+        data.externalReference ??
+        null,
       txid: null,
       emv: null,
       checkout: null,
@@ -627,28 +511,16 @@ export class GatewayService {
     };
   }
 
-  async getWithdrawalById(withdrawalId: string, merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
-    }
+  async getWithdrawalById(
+    withdrawalId: string,
+    merchantId: string,
+  ) {
+    const account = await this.getGatewayAccount(merchantId);
 
     const response = await this.httpService.axiosRef.get(
       `${this.baseUrl}/withdrawals/${withdrawalId}`,
       {
-        headers: {
-          Authorization: `Bearer ${account.accessToken}`,
-        },
+        headers: this.getAuthHeaders(account.accessToken),
       },
     );
 
@@ -667,22 +539,34 @@ export class GatewayService {
       createdAt: withdrawal.createdAt,
     };
   }
-  private async getGatewayAccount(merchantId: string) {
-    const account = await this.gatewayAccountRepository.findOne({
-      where: {
-        merchant: {
-          id: merchantId,
+
+  private async getGatewayAccount(
+    merchantId: string,
+  ): Promise<GatewayAccount> {
+    const account =
+      await this.gatewayAccountRepository.findOne({
+        where: {
+          merchant: {
+            id: merchantId,
+          },
         },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
+        relations: {
+          merchant: true,
+        },
+      });
 
     if (!account) {
-      throw new UnauthorizedException('Conta do gateway não encontrada');
+      throw new UnauthorizedException(
+        'Conta do gateway não encontrada',
+      );
     }
 
     return account;
+  }
+
+  private getAuthHeaders(accessToken: string) {
+    return {
+      Authorization: `Bearer ${accessToken}`,
+    };
   }
 }
