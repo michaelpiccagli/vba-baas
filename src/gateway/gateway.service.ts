@@ -353,4 +353,55 @@ export class GatewayService {
       fee: card.fee,
     };
   }
+
+  async getPaymentById(paymentId: string, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const payment = response.data;
+
+    return {
+      id: payment.id,
+      type: payment.type,
+      status: payment.status,
+      denialReason: payment.denialReason ?? null,
+      amount: payment.amount,
+      amountFormatted: payment.amountFormatted,
+      description: payment.description,
+      message: payment.message,
+      externalReference: payment.metadata?.externalReference ?? null,
+      createdAt: payment.createdAt,
+      card:
+        payment.type === 'CREDIT_CARD'
+          ? {
+              brand: payment.metadata?.cardBrand,
+              last4: payment.metadata?.cardLast4,
+              holder: payment.metadata?.cardHolder,
+              installments: payment.metadata?.installments,
+              feePercent: payment.metadata?.feePercent,
+            }
+          : undefined,
+    };
+  }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, Param } from '@nestjs/common';
 
 import { GatewayService } from './gateway.service';
 import { LoginDto } from './dto/login.dto';
@@ -73,4 +73,13 @@ export class GatewayController {
   ) {
     return this.gatewayService.createPix(data, merchant.merchantId);
   }
+
+  @UseGuards(JwtAuthGuard)
+@Get('payments/:id')
+getPaymentById(
+  @Param('id') id: string,
+  @CurrentMerchant() merchant: { merchantId: string },
+) {
+  return this.gatewayService.getPaymentById(id, merchant.merchantId);
+}
 }
