@@ -6,11 +6,13 @@ import { Merchant } from '../merchants/entities/merchant.entity';
 import { CheckoutsService } from './checkouts.service';
 import { CheckoutsController } from './checkouts.controller';
 import { AuthModule } from '../auth/auth.module';
+import { GatewayModule } from '../gateway/gateway.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Checkout, Merchant]),
     AuthModule,
+    GatewayModule,
   ],
   controllers: [CheckoutsController],
   providers: [CheckoutsService],

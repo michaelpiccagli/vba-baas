@@ -2,9 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
+
+import { Checkout } from '../../checkouts/entities/checkout.entity';
 
 @Entity('transactions')
 export class Transaction {
@@ -37,6 +42,12 @@ export class Transaction {
 
   @Column({ type: 'text', nullable: true })
   emv: string | null;
+
+  @ManyToOne(() => Checkout, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'checkoutId' })
+  checkout: Relation<Checkout> | null;
 
   @CreateDateColumn()
   createdAt: Date;

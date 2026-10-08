@@ -14,6 +14,7 @@ import { Repository } from 'typeorm';
 import { GatewayAccount } from './entities/gateway-account.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { Merchant } from '../merchants/entities/merchant.entity';
+import { Checkout } from '../checkouts/entities/checkout.entity';
 
 @Injectable()
 export class GatewayService {
@@ -35,9 +36,14 @@ export class GatewayService {
     return this.configService.getOrThrow<string>('GATEWAY_BASE_URL');
   }
 
-  async getFees(): Promise<FeesResponseDto> {
+  async getFees(brand?: string): Promise<FeesResponseDto> {
     const response = await this.httpService.axiosRef.get<FeesResponseDto>(
       `${this.baseUrl}/fees`,
+      {
+        params: {
+          brand,
+        },
+      },
     );
 
     return response.data;
@@ -172,7 +178,11 @@ export class GatewayService {
     return response.data;
   }
 
-  async createPix(data: CreatePixDto, merchantId: string) {
+  async createPix(
+  data: CreatePixDto,
+  merchantId: string,
+  checkout?: Checkout,
+) {
     const account = await this.gatewayAccountRepository.findOne({
       where: {
         merchant: {
@@ -212,6 +222,7 @@ export class GatewayService {
       externalReference: pix.externalReference,
       txid: pix.txid,
       emv: pix.emv,
+      checkout: checkout ?? null,
     });
 
     await this.transactionRepository.save(transaction);

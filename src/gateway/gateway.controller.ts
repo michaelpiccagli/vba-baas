@@ -13,8 +13,8 @@ export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
   @Get('fees')
-  getFees() {
-    return this.gatewayService.getFees();
+  getFees(@Query('brand') brand?: string) {
+    return this.gatewayService.getFees(brand);
   }
 
   @UseGuards(JwtAuthGuard)

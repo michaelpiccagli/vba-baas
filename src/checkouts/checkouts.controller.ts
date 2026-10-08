@@ -1,7 +1,15 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { CheckoutsService } from './checkouts.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { CreateCheckoutPixDto } from './dto/create-checkout-pix.dto';
+
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
 
@@ -18,6 +26,20 @@ export class CheckoutsController {
     @CurrentMerchant() merchant: { merchantId: string },
   ) {
     return this.checkoutsService.create(
+      data,
+      merchant.merchantId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/pix')
+  createPix(
+    @Param('id') id: string,
+    @Body() data: CreateCheckoutPixDto,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.checkoutsService.createPix(
+      id,
       data,
       merchant.merchantId,
     );
