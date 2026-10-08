@@ -1,23 +1,16 @@
-import {
-  Body,
-  Controller,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 
 import { CheckoutsService } from './checkouts.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CreateCheckoutPixDto } from './dto/create-checkout-pix.dto';
+import { CreateCheckoutCardDto } from './dto/create-checkout-card.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
 
 @Controller('checkouts')
 export class CheckoutsController {
-  constructor(
-    private readonly checkoutsService: CheckoutsService,
-  ) {}
+  constructor(private readonly checkoutsService: CheckoutsService) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -25,10 +18,7 @@ export class CheckoutsController {
     @Body() data: CreateCheckoutDto,
     @CurrentMerchant() merchant: { merchantId: string },
   ) {
-    return this.checkoutsService.create(
-      data,
-      merchant.merchantId,
-    );
+    return this.checkoutsService.create(data, merchant.merchantId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -38,8 +28,18 @@ export class CheckoutsController {
     @Body() data: CreateCheckoutPixDto,
     @CurrentMerchant() merchant: { merchantId: string },
   ) {
-    return this.checkoutsService.createPix(
-      id,
+    return this.checkoutsService.createPix(id, data, merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/card')
+  createCard(
+    @Param('id') checkoutId: string,
+    @Body() data: CreateCheckoutCardDto,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.checkoutsService.createCard(
+      checkoutId,
       data,
       merchant.merchantId,
     );

@@ -1,18 +1,19 @@
 import {
-  Injectable,
   BadRequestException,
+  Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 
-import { Checkout } from './entities/checkout.entity';
+import { CreateCheckoutCardDto } from './dto/create-checkout-card.dto';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
-import { Merchant } from '../merchants/entities/merchant.entity';
+import { CreateCheckoutPixDto } from './dto/create-checkout-pix.dto';
+import { Checkout } from './entities/checkout.entity';
 
 import { GatewayService } from '../gateway/gateway.service';
-import { CreateCheckoutPixDto } from './dto/create-checkout-pix.dto';
+import { Merchant } from '../merchants/entities/merchant.entity';
 
 @Injectable()
 export class CheckoutsService {
@@ -87,13 +88,13 @@ export class CheckoutsService {
       throw new NotFoundException('Checkout não encontrado');
     }
 
-    if (checkout.expiresAt.getTime() <= Date.now()) {
+    if (checkout.expiresAt <= new Date()) {
       checkout.status = 'EXPIRED';
       await this.checkoutRepository.save(checkout);
 
       throw new BadRequestException('Checkout expirado');
     }
-    
+
     if (checkout.status !== 'PENDING') {
       throw new BadRequestException(
         'Este checkout não está disponível para pagamento',
@@ -115,5 +116,61 @@ export class CheckoutsService {
     await this.checkoutRepository.save(checkout);
 
     return pix;
+  }
+
+  async createCard(
+    checkoutId: string,
+    data: CreateCheckoutCardDto,
+    merchantId: string,
+  ) {
+    const checkout = await this.checkoutRepository.findOne({
+      where: {
+        id: checkoutId,
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!checkout) {
+      throw new NotFoundException('Checkout não encontrado');
+    }
+
+    if (checkout.expiresAt <= new Date()) {
+      checkout.status = 'EXPIRED';
+      await this.checkoutRepository.save(checkout);
+
+      throw new BadRequestException('Checkout expirado');
+    }
+
+    if (checkout.status !== 'PENDING') {
+      throw new BadRequestException('Checkout indisponível para pagamento');
+    }
+
+    const card = await this.gatewayService.createCard(
+      {
+        amount: checkout.amount,
+        description: checkout.description ?? undefined,
+        externalReference: checkout.externalReference,
+        cardNumber: data.cardNumber,
+        cardHolder: data.cardHolder,
+        expiryMonth: data.expiryMonth,
+        expiryYear: data.expiryYear,
+        cvv: data.cvv,
+        installments: data.installments,
+        feePercent: data.feePercent,
+      },
+      merchantId,
+      checkout,
+    );
+
+    checkout.status = card.status;
+
+    await this.checkoutRepository.save(checkout);
+
+    return card;
   }
 }

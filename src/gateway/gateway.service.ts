@@ -268,7 +268,11 @@ export class GatewayService {
     };
   }
 
-  async createCard(data: CreateCardDto, merchantId: string) {
+  async createCard(
+    data: CreateCardDto,
+    merchantId: string,
+    checkout?: Checkout,
+  ) {
     const account = await this.gatewayAccountRepository.findOne({
       where: {
         merchant: {
@@ -324,6 +328,7 @@ export class GatewayService {
         card.externalReference ?? data.externalReference ?? null,
       txid: null,
       emv: null,
+      checkout: checkout ?? null,
     });
 
     await this.transactionRepository.save(transaction);
