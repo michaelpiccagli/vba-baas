@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { WebhookSubscription } from './entities/webhook-subscription.entity';
 import { Checkout } from '../checkouts/entities/checkout.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { WebhookEvent } from './entities/webhook-event.entity';
 
 @Injectable()
 export class WebhooksService {
@@ -17,6 +18,8 @@ export class WebhooksService {
 
     @InjectRepository(Checkout)
     private readonly checkoutRepository: Repository<Checkout>,
+    @InjectRepository(WebhookEvent)
+    private readonly webhookEventRepository: Repository<WebhookEvent>,
   ) {}
 
   async validateSignature(event: string, rawBody: Buffer, signature?: string) {
@@ -70,6 +73,21 @@ export class WebhooksService {
       };
     }
 
+    const existingEvent = await this.webhookEventRepository.findOne({
+      where: {
+        gatewayTransactionId: id,
+        status,
+      },
+    });
+
+    if (existingEvent) {
+      return {
+        received: true,
+        updated: false,
+        duplicate: true,
+      };
+    }
+
     const transaction = await this.transactionRepository.findOne({
       where: {
         gatewayTransactionId: id,
@@ -99,9 +117,18 @@ export class WebhooksService {
       await this.checkoutRepository.save(transaction.checkout);
     }
 
+    const webhookEvent = this.webhookEventRepository.create({
+      gatewayTransactionId: id,
+      status,
+      event: 'PAYMENT',
+    });
+
+    await this.webhookEventRepository.save(webhookEvent);
+
     return {
       received: true,
       updated: true,
+      duplicate: false,
       transactionId: transaction.id,
       status,
     };
