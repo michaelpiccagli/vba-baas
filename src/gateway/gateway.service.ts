@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreatePixDto } from './dto/create-pix.dto';
+import { CreateWebhookDto } from './dto/create-webhook.dto';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -403,5 +404,90 @@ export class GatewayService {
             }
           : undefined,
     };
+  }
+
+  async createWebhook(data: CreateWebhookDto, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.post(
+      `${this.baseUrl}/webhooks`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    return response.data;
+  }
+
+  async getWebhooks(merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/webhooks`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    return response.data;
+  }
+
+  async deleteWebhook(webhookId: string, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.delete(
+      `${this.baseUrl}/webhooks/${webhookId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    return response.data;
   }
 }

@@ -1,15 +1,23 @@
-import { Body, Controller, Get, Post, Query, UseGuards, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { GatewayService } from './gateway.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreatePixDto } from './dto/create-pix.dto';
 import { CreateCardDto } from './dto/create-card.dto';
+import { CreateWebhookDto } from './dto/create-webhook.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
-
-
 
 @Controller('gateway')
 export class GatewayController {
@@ -75,11 +83,35 @@ export class GatewayController {
   }
 
   @UseGuards(JwtAuthGuard)
-@Get('payments/:id')
-getPaymentById(
-  @Param('id') id: string,
-  @CurrentMerchant() merchant: { merchantId: string },
-) {
-  return this.gatewayService.getPaymentById(id, merchant.merchantId);
-}
+  @Get('payments/:id')
+  getPaymentById(
+    @Param('id') id: string,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.getPaymentById(id, merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('webhooks')
+  createWebhook(
+    @Body() data: CreateWebhookDto,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.createWebhook(data, merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('webhooks')
+  getWebhooks(@CurrentMerchant() merchant: { merchantId: string }) {
+    return this.gatewayService.getWebhooks(merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('webhooks/:id')
+  deleteWebhook(
+    @Param('id') id: string,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.deleteWebhook(id, merchant.merchantId);
+  }
 }
