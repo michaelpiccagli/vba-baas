@@ -38,9 +38,7 @@ export class CheckoutsService {
       throw new NotFoundException('Lojista não encontrado');
     }
 
-    const expiresAt = new Date(
-      Date.now() + 30 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     const checkout = this.checkoutRepository.create({
       amount: data.amount,
@@ -71,15 +69,56 @@ export class CheckoutsService {
     };
   }
 
+  /**
+   * Endpoint público utilizado quando o cliente
+   * abre o link de checkout.
+   *
+   * Não expomos dados sensíveis do lojista.
+   */
+  async getPublicCheckout(checkoutId: string) {
+    const checkout = await this.checkoutRepository.findOne({
+      where: {
+        id: checkoutId,
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!checkout) {
+      throw new NotFoundException('Checkout não encontrado');
+    }
+
+    if (
+      checkout.status === 'PENDING' &&
+      checkout.expiresAt <= new Date()
+    ) {
+      checkout.status = 'EXPIRED';
+
+      await this.checkoutRepository.save(checkout);
+    }
+
+    return {
+      id: checkout.id,
+      externalReference: checkout.externalReference,
+      amount: checkout.amount,
+      description: checkout.description,
+      status: checkout.status,
+      expiresAt: checkout.expiresAt,
+      merchant: {
+        name: checkout.merchant.name,
+      },
+    };
+  }
+
   async createPix(
     checkoutId: string,
     data: CreateCheckoutPixDto,
-    merchantId: string,
   ) {
-    const checkout = await this.getAvailableCheckout(
-      checkoutId,
-      merchantId,
-    );
+    const checkout =
+      await this.getAvailableCheckout(checkoutId);
+
+    const merchantId = checkout.merchant.id;
 
     const pix = await this.gatewayService.createPix(
       {
@@ -103,12 +142,11 @@ export class CheckoutsService {
   async createCard(
     checkoutId: string,
     data: CreateCheckoutCardDto,
-    merchantId: string,
   ) {
-    const checkout = await this.getAvailableCheckout(
-      checkoutId,
-      merchantId,
-    );
+    const checkout =
+      await this.getAvailableCheckout(checkoutId);
+
+    const merchantId = checkout.merchant.id;
 
     const card = await this.gatewayService.createCard(
       {
@@ -135,22 +173,19 @@ export class CheckoutsService {
     return card;
   }
 
-  /*
-   * REFATORAÇÃO:
-   * A busca do checkout, validação de expiração
-   * e verificação do status PENDING estavam
-   * repetidas nos fluxos Pix e cartão.
+  /**
+   * Busca e valida um checkout antes do pagamento.
+   *
+   * Como o pagamento é público, o merchantId não vem
+   * mais do JWT. O lojista é obtido pela relação
+   * armazenada no próprio checkout.
    */
   private async getAvailableCheckout(
     checkoutId: string,
-    merchantId: string,
   ): Promise<Checkout> {
     const checkout = await this.checkoutRepository.findOne({
       where: {
         id: checkoutId,
-        merchant: {
-          id: merchantId,
-        },
       },
       relations: {
         merchant: true,
