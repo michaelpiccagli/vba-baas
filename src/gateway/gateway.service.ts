@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 
@@ -15,6 +19,7 @@ import { GatewayAccount } from './entities/gateway-account.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { Merchant } from '../merchants/entities/merchant.entity';
 import { Checkout } from '../checkouts/entities/checkout.entity';
+import { CreateCardDto } from './dto/create-card.dto';
 
 @Injectable()
 export class GatewayService {
@@ -31,6 +36,28 @@ export class GatewayService {
     @InjectRepository(Merchant)
     private readonly merchantRepository: Repository<Merchant>,
   ) {}
+
+  private detectCardBrand(cardNumber: string): 'VISA' | 'MASTERCARD' | 'ELO' {
+    const number = cardNumber.replace(/\D/g, '');
+
+    if (
+      /^(401178|401179|431274|438935|451416|457393|457631|504175|5067|509|627780|636297|636368|650|6516|6550)/.test(
+        number,
+      )
+    ) {
+      return 'ELO';
+    }
+
+    if (/^4/.test(number)) {
+      return 'VISA';
+    }
+
+    if (/^(5[1-5]|2[2-7])/.test(number)) {
+      return 'MASTERCARD';
+    }
+
+    throw new BadRequestException('Bandeira do cartão não suportada');
+  }
 
   private get baseUrl(): string {
     return this.configService.getOrThrow<string>('GATEWAY_BASE_URL');
@@ -178,11 +205,7 @@ export class GatewayService {
     return response.data;
   }
 
-  async createPix(
-  data: CreatePixDto,
-  merchantId: string,
-  checkout?: Checkout,
-) {
+  async createPix(data: CreatePixDto, merchantId: string, checkout?: Checkout) {
     const account = await this.gatewayAccountRepository.findOne({
       where: {
         merchant: {
@@ -242,6 +265,87 @@ export class GatewayService {
       qrCodeBase64: pix.qrCodeBase64,
       copyPaste: pix.copyPaste,
       createdAt: pix.createdAt,
+    };
+  }
+
+  async createCard(data: CreateCardDto, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const brand = this.detectCardBrand(data.cardNumber);
+
+    const feesResponse = await this.getFees(brand);
+
+    const matchingFee = feesResponse.fees.find(
+      (fee: { brand: string; installments: number; feePercent: number }) =>
+        fee.brand === brand &&
+        fee.installments === data.installments &&
+        fee.feePercent === data.feePercent,
+    );
+
+    if (!matchingFee) {
+      throw new BadRequestException(
+        `feePercent inválido para ${brand} em ${data.installments} parcela(s)`,
+      );
+    }
+
+    const response = await this.httpService.axiosRef.post(
+      `${this.baseUrl}/payments/card`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const card = response.data;
+
+    const transaction = this.transactionRepository.create({
+      gatewayTransactionId: card.id,
+      type: card.type,
+      status: card.status,
+      denialReason: card.denialReason ?? null,
+      amount: card.amount,
+      description: card.description ?? null,
+      externalReference:
+        card.externalReference ?? data.externalReference ?? null,
+      txid: null,
+      emv: null,
+    });
+
+    await this.transactionRepository.save(transaction);
+
+    return {
+      id: card.id,
+      type: card.type,
+      status: card.status,
+      denialReason: card.denialReason ?? null,
+      amount: card.amount,
+      amountFormatted: card.amountFormatted,
+      description: card.description,
+      message: card.message,
+      externalReference: card.externalReference,
+      createdAt: card.createdAt,
+      card: {
+        brand: card.metadata?.cardBrand,
+        last4: card.metadata?.cardLast4,
+        holder: card.metadata?.cardHolder,
+        installments: card.metadata?.installments,
+      },
+      fee: card.fee,
     };
   }
 }

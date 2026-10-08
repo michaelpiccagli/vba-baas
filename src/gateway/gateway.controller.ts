@@ -4,13 +4,25 @@ import { GatewayService } from './gateway.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreatePixDto } from './dto/create-pix.dto';
+import { CreateCardDto } from './dto/create-card.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
 
+
+
 @Controller('gateway')
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post('payments/card')
+  createCard(
+    @Body() data: CreateCardDto,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.createCard(data, merchant.merchantId);
+  }
 
   @Get('fees')
   getFees(@Query('brand') brand?: string) {
