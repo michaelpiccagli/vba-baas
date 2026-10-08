@@ -7,13 +7,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 
+import { GatewayService } from '../gateway/gateway.service';
+import { Merchant } from '../merchants/entities/merchant.entity';
+
 import { CreateCheckoutCardDto } from './dto/create-checkout-card.dto';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CreateCheckoutPixDto } from './dto/create-checkout-pix.dto';
 import { Checkout } from './entities/checkout.entity';
-
-import { GatewayService } from '../gateway/gateway.service';
-import { Merchant } from '../merchants/entities/merchant.entity';
 
 @Injectable()
 export class CheckoutsService {
@@ -29,14 +29,18 @@ export class CheckoutsService {
 
   async create(data: CreateCheckoutDto, merchantId: string) {
     const merchant = await this.merchantRepository.findOne({
-      where: { id: merchantId },
+      where: {
+        id: merchantId,
+      },
     });
 
     if (!merchant) {
       throw new NotFoundException('Lojista não encontrado');
     }
 
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + 30 * 60 * 1000,
+    );
 
     const checkout = this.checkoutRepository.create({
       amount: data.amount,
@@ -47,7 +51,8 @@ export class CheckoutsService {
       merchant,
     });
 
-    const savedCheckout = await this.checkoutRepository.save(checkout);
+    const savedCheckout =
+      await this.checkoutRepository.save(checkout);
 
     return {
       id: savedCheckout.id,
@@ -59,7 +64,6 @@ export class CheckoutsService {
         id: merchant.id,
         name: merchant.name,
         email: merchant.email,
-        document: merchant.document,
       },
       createdAt: savedCheckout.createdAt,
       updatedAt: savedCheckout.updatedAt,
@@ -72,34 +76,10 @@ export class CheckoutsService {
     data: CreateCheckoutPixDto,
     merchantId: string,
   ) {
-    const checkout = await this.checkoutRepository.findOne({
-      where: {
-        id: checkoutId,
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!checkout) {
-      throw new NotFoundException('Checkout não encontrado');
-    }
-
-    if (checkout.expiresAt <= new Date()) {
-      checkout.status = 'EXPIRED';
-      await this.checkoutRepository.save(checkout);
-
-      throw new BadRequestException('Checkout expirado');
-    }
-
-    if (checkout.status !== 'PENDING') {
-      throw new BadRequestException(
-        'Este checkout não está disponível para pagamento',
-      );
-    }
+    const checkout = await this.getAvailableCheckout(
+      checkoutId,
+      merchantId,
+    );
 
     const pix = await this.gatewayService.createPix(
       {
@@ -112,8 +92,10 @@ export class CheckoutsService {
       checkout,
     );
 
-    checkout.status = pix.status;
-    await this.checkoutRepository.save(checkout);
+    await this.updateCheckoutStatus(
+      checkout,
+      pix.status,
+    );
 
     return pix;
   }
@@ -123,32 +105,10 @@ export class CheckoutsService {
     data: CreateCheckoutCardDto,
     merchantId: string,
   ) {
-    const checkout = await this.checkoutRepository.findOne({
-      where: {
-        id: checkoutId,
-        merchant: {
-          id: merchantId,
-        },
-      },
-      relations: {
-        merchant: true,
-      },
-    });
-
-    if (!checkout) {
-      throw new NotFoundException('Checkout não encontrado');
-    }
-
-    if (checkout.expiresAt <= new Date()) {
-      checkout.status = 'EXPIRED';
-      await this.checkoutRepository.save(checkout);
-
-      throw new BadRequestException('Checkout expirado');
-    }
-
-    if (checkout.status !== 'PENDING') {
-      throw new BadRequestException('Checkout indisponível para pagamento');
-    }
+    const checkout = await this.getAvailableCheckout(
+      checkoutId,
+      merchantId,
+    );
 
     const card = await this.gatewayService.createCard(
       {
@@ -167,10 +127,67 @@ export class CheckoutsService {
       checkout,
     );
 
-    checkout.status = card.status;
-
-    await this.checkoutRepository.save(checkout);
+    await this.updateCheckoutStatus(
+      checkout,
+      card.status,
+    );
 
     return card;
+  }
+
+  /*
+   * REFATORAÇÃO:
+   * A busca do checkout, validação de expiração
+   * e verificação do status PENDING estavam
+   * repetidas nos fluxos Pix e cartão.
+   */
+  private async getAvailableCheckout(
+    checkoutId: string,
+    merchantId: string,
+  ): Promise<Checkout> {
+    const checkout = await this.checkoutRepository.findOne({
+      where: {
+        id: checkoutId,
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!checkout) {
+      throw new NotFoundException(
+        'Checkout não encontrado',
+      );
+    }
+
+    if (checkout.expiresAt <= new Date()) {
+      checkout.status = 'EXPIRED';
+
+      await this.checkoutRepository.save(checkout);
+
+      throw new BadRequestException(
+        'Checkout expirado',
+      );
+    }
+
+    if (checkout.status !== 'PENDING') {
+      throw new BadRequestException(
+        'Este checkout não está disponível para pagamento',
+      );
+    }
+
+    return checkout;
+  }
+
+  private async updateCheckoutStatus(
+    checkout: Checkout,
+    status: string,
+  ): Promise<void> {
+    checkout.status = status;
+
+    await this.checkoutRepository.save(checkout);
   }
 }
