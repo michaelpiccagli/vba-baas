@@ -24,6 +24,6 @@ export class WebhooksController {
       signature,
     );
 
-    return this.webhooksService.processWebhook(body);
+    return this.webhooksService.processWebhook(event, body);
   }
 }
