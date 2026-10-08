@@ -32,6 +32,9 @@ export class Checkout {
   })
   merchant: Relation<Merchant>;
 
+  @Column({ type: 'datetime' })
+  expiresAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

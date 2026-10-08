@@ -35,11 +35,14 @@ export class CheckoutsService {
       throw new NotFoundException('Lojista não encontrado');
     }
 
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
     const checkout = this.checkoutRepository.create({
       amount: data.amount,
       description: data.description ?? null,
       status: 'PENDING',
       externalReference: `CHK-${randomUUID()}`,
+      expiresAt,
       merchant,
     });
 
@@ -59,6 +62,7 @@ export class CheckoutsService {
       },
       createdAt: savedCheckout.createdAt,
       updatedAt: savedCheckout.updatedAt,
+      expiresAt: savedCheckout.expiresAt,
     };
   }
 
@@ -83,6 +87,13 @@ export class CheckoutsService {
       throw new NotFoundException('Checkout não encontrado');
     }
 
+    if (checkout.expiresAt.getTime() <= Date.now()) {
+      checkout.status = 'EXPIRED';
+      await this.checkoutRepository.save(checkout);
+
+      throw new BadRequestException('Checkout expirado');
+    }
+    
     if (checkout.status !== 'PENDING') {
       throw new BadRequestException(
         'Este checkout não está disponível para pagamento',
