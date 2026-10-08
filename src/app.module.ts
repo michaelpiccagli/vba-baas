@@ -12,6 +12,7 @@ import { MerchantsModule } from './merchants/merchants.module';
 import { AuthModule } from './auth/auth.module';
 
 import { CheckoutsModule } from './checkouts/checkouts.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CheckoutsModule } from './checkouts/checkouts.module';
     MerchantsModule,
     AuthModule,
     CheckoutsModule,
+    WebhooksModule,
   ],
 
   controllers: [AppController],
