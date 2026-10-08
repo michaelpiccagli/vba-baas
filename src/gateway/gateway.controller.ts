@@ -19,6 +19,7 @@ import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('gateway')
 export class GatewayController {
@@ -47,9 +48,20 @@ export class GatewayController {
     return this.gatewayService.login(data, merchant.merchantId);
   }
 
+  @Post('auth/reset-password')
+  resetPassword(@Body() data: ResetPasswordDto) {
+    return this.gatewayService.resetPassword(data);
+  }
+
   @Post('users')
   createUser(@Body() data: CreateUserDto) {
     return this.gatewayService.createUser(data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users/me')
+  getCurrentUser(@CurrentMerchant() merchant: { merchantId: string }) {
+    return this.gatewayService.getCurrentUser(merchant.merchantId);
   }
 
   @UseGuards(JwtAuthGuard)

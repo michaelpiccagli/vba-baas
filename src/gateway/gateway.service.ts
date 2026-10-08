@@ -23,6 +23,7 @@ import { Checkout } from '../checkouts/entities/checkout.entity';
 import { CreateCardDto } from './dto/create-card.dto';
 import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class GatewayService {
@@ -139,6 +140,65 @@ export class GatewayService {
     );
 
     return response.data;
+  }
+
+  async getCurrentUser(merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/users/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const user = response.data;
+
+    return {
+      id: user.id,
+      personType: user.personType,
+      name: user.name,
+      tradingName: user.tradingName ?? null,
+      email: user.email,
+      phone: user.phone,
+      document: user.document
+        ? `${user.document.slice(0, 3)}.***.***-${user.document.slice(-2)}`
+        : null,
+      zipCode: user.zipCode,
+      address: user.address,
+      number: user.number,
+      complement: user.complement ?? null,
+      neighborhood: user.neighborhood,
+      city: user.city,
+      state: user.state,
+    };
+  }
+
+  async resetPassword(data: ResetPasswordDto) {
+    const response = await this.httpService.axiosRef.post(
+      `${this.baseUrl}/auth/reset-password`,
+      data,
+    );
+
+    return {
+      message: response.data.message,
+      email: response.data.email,
+    };
   }
 
   async getWallet(merchantId: string) {
