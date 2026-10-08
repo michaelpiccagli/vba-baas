@@ -22,6 +22,7 @@ import { Merchant } from '../merchants/entities/merchant.entity';
 import { Checkout } from '../checkouts/entities/checkout.entity';
 import { CreateCardDto } from './dto/create-card.dto';
 import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
+import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 
 @Injectable()
 export class GatewayService {
@@ -506,5 +507,104 @@ export class GatewayService {
     );
 
     return response.data;
+  }
+
+  async createWithdrawal(data: CreateWithdrawalDto, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.post(
+      `${this.baseUrl}/withdrawals`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const withdrawal = response.data;
+
+    const transaction = this.transactionRepository.create({
+      gatewayTransactionId: withdrawal.id,
+      type: withdrawal.type,
+      status: withdrawal.status,
+      denialReason: withdrawal.denialReason ?? null,
+      amount: withdrawal.amount,
+      description: withdrawal.description ?? null,
+      externalReference:
+        withdrawal.externalReference ?? data.externalReference ?? null,
+      txid: null,
+      emv: null,
+      checkout: null,
+    });
+
+    await this.transactionRepository.save(transaction);
+
+    return {
+      id: withdrawal.id,
+      type: withdrawal.type,
+      status: withdrawal.status,
+      denialReason: withdrawal.denialReason ?? null,
+      amount: withdrawal.amount,
+      amountFormatted: withdrawal.amountFormatted,
+      description: withdrawal.description,
+      message: withdrawal.message,
+      externalReference: withdrawal.externalReference,
+      createdAt: withdrawal.createdAt,
+    };
+  }
+
+  async getWithdrawalById(withdrawalId: string, merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    const response = await this.httpService.axiosRef.get(
+      `${this.baseUrl}/withdrawals/${withdrawalId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+        },
+      },
+    );
+
+    const withdrawal = response.data;
+
+    return {
+      id: withdrawal.id,
+      type: withdrawal.type,
+      status: withdrawal.status,
+      denialReason: withdrawal.denialReason ?? null,
+      amount: withdrawal.amount,
+      amountFormatted: withdrawal.amountFormatted,
+      description: withdrawal.description,
+      message: withdrawal.message,
+      externalReference: withdrawal.externalReference,
+      createdAt: withdrawal.createdAt,
+    };
   }
 }

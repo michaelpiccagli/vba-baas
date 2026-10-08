@@ -18,6 +18,7 @@ import { CreateWebhookDto } from './dto/create-webhook.dto';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentMerchant } from '../auth/current-merchant.decorator';
+import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 
 @Controller('gateway')
 export class GatewayController {
@@ -113,5 +114,23 @@ export class GatewayController {
     @CurrentMerchant() merchant: { merchantId: string },
   ) {
     return this.gatewayService.deleteWebhook(id, merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('withdrawals')
+  createWithdrawal(
+    @Body() data: CreateWithdrawalDto,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.createWithdrawal(data, merchant.merchantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('withdrawals/:id')
+  getWithdrawalById(
+    @Param('id') id: string,
+    @CurrentMerchant() merchant: { merchantId: string },
+  ) {
+    return this.gatewayService.getWithdrawalById(id, merchant.merchantId);
   }
 }
