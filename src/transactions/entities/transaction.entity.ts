@@ -38,6 +38,26 @@ export class Transaction {
   externalReference: string;
 
   @Column({ type: 'varchar', nullable: true })
+  cardBrand: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  installments: number | null;
+
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+  })
+  feePercent: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  feeAmount: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  netAmount: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
   txid: string | null;
 
   @Column({ type: 'text', nullable: true })
