@@ -11,14 +11,14 @@ import { Transaction } from '../transactions/entities/transaction.entity';
 
 import { AuthModule } from '../auth/auth.module';
 import { Merchant } from '../merchants/entities/merchant.entity';
-
+import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
 @Module({
   imports: [
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 5,
     }),
-    TypeOrmModule.forFeature([GatewayAccount, Transaction, Merchant]),
+    TypeOrmModule.forFeature([GatewayAccount, Transaction, Merchant, WebhookSubscription,]),
     AuthModule,
   ],
   controllers: [GatewayController],

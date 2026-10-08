@@ -10,6 +10,7 @@ import { GatewayAccount } from './entities/gateway-account.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 
 import { Merchant } from '../merchants/entities/merchant.entity';
+import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
 
 describe('GatewayService', () => {
   let service: GatewayService;
@@ -57,6 +58,11 @@ describe('GatewayService', () => {
             create: jest.fn(),
             save: jest.fn(),
           },
+        },
+
+        {
+          provide: getRepositoryToken(WebhookSubscription),
+          useValue: {},
         },
       ],
     }).compile();

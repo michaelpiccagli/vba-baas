@@ -21,6 +21,7 @@ import { Transaction } from '../transactions/entities/transaction.entity';
 import { Merchant } from '../merchants/entities/merchant.entity';
 import { Checkout } from '../checkouts/entities/checkout.entity';
 import { CreateCardDto } from './dto/create-card.dto';
+import { WebhookSubscription } from '../webhooks/entities/webhook-subscription.entity';
 
 @Injectable()
 export class GatewayService {
@@ -36,6 +37,9 @@ export class GatewayService {
 
     @InjectRepository(Merchant)
     private readonly merchantRepository: Repository<Merchant>,
+
+    @InjectRepository(WebhookSubscription)
+    private readonly webhookSubscriptionRepository: Repository<WebhookSubscription>,
   ) {}
 
   private detectCardBrand(cardNumber: string): 'VISA' | 'MASTERCARD' | 'ELO' {
@@ -418,7 +422,7 @@ export class GatewayService {
       },
     });
 
-    if (!account) {
+    if (!account || !account.merchant) {
       throw new UnauthorizedException('Conta do gateway não encontrada');
     }
 
@@ -432,7 +436,20 @@ export class GatewayService {
       },
     );
 
-    return response.data;
+    const webhook = response.data;
+
+    const subscription = this.webhookSubscriptionRepository.create({
+      gatewayWebhookId: webhook.id,
+      event: webhook.event,
+      url: webhook.url,
+      secret: data.secret ?? null,
+      active: webhook.active,
+      merchant: account.merchant,
+    });
+
+    await this.webhookSubscriptionRepository.save(subscription);
+
+    return webhook;
   }
 
   async getWebhooks(merchantId: string) {
