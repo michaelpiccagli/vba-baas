@@ -667,4 +667,22 @@ export class GatewayService {
       createdAt: withdrawal.createdAt,
     };
   }
+  private async getGatewayAccount(merchantId: string) {
+    const account = await this.gatewayAccountRepository.findOne({
+      where: {
+        merchant: {
+          id: merchantId,
+        },
+      },
+      relations: {
+        merchant: true,
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Conta do gateway não encontrada');
+    }
+
+    return account;
+  }
 }

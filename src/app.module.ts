@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 
 import { CheckoutsModule } from './checkouts/checkouts.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AuthModule,
     CheckoutsModule,
     WebhooksModule,
+    HealthModule,
   ],
 
   controllers: [AppController],
